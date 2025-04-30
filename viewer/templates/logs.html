@@ -4,8 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Viewer: [ {{ session["current_project"] }} ]</title>
+    <style>
+        .scrollable-table {
+            max-height: 400px;
+	    overflow-y: auto;
+	    border: 1px solid #ccc;
+	}
+        table {
+            width: 100%;
+	    border-collapse: collapse;
+	}
+        th, td {
+            padding: 8px;
+	    text-align: left;
+            border: 1px solid #ddd;        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
 </head>
 <body>
-    <h1>Gestion des logs</h1>
+    <div class="scrollable-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Packet ID</th>
+                    <th>Method</th>
+                    <th>Autority</th>
+                    <th>Path</th>
+                    <th>Query</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log_row in logs %}
+                <tr>
+                    <td>{{ log_row.packet_id }}</td>
+                    <td>{{ log_row.method }}</td>
+                    <td>{{ log_row.authority }}</td>
+                    <td>{{ log_row.path }}</td>
+                    <td>{{ log_row.query }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>

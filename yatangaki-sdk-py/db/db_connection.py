@@ -9,11 +9,12 @@ def db_basepath():
     return Path(home_dir) / BASEDIR / "db"
 
 def init_db_conn(db_name: str, project_name: str) -> sqlite3.Connection:
-    db_basedir = db_basepath() / "db" / project_name
+    db_basedir = db_basepath() / project_name
 
     if not db_basedir.exists():
         db_basedir.mkdir(parents=True)
 
     db_path = db_basedir / f"{db_name}.db"
 
+    print(f"connecting to {str(db_path)}")
     return sqlite3.connect(str(db_path))

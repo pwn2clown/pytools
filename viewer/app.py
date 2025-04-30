@@ -31,8 +31,11 @@ def logs():
     if not is_project_loaded():
         return redirect("/")
 
-    print(HttpDb.get_row_summary())
-    return render_template("logs.html", session=session)
+    return render_template(
+            "logs.html",
+            session=session,
+            logs=HttpDb.get_row_summary()
+        )
 
 @app.route('/project', methods=['POST'])
 def select_project():
