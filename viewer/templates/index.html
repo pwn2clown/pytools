@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewer</title>
+</head>
+<body>
+    <h1>Sélectionnez un Projet</h1>
+    <form action="/project" method="post">
+        <label for="projects">Projets disponibles:</label>
+        <select name="project" id="projects">
+            {% for project in available_projects %}
+                <option value="{{ project }}">{{ project }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Sélectionner</button>
+    </form>
+</body>
+</html>
