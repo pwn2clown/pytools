@@ -17,11 +17,54 @@
         th, td {
             padding: 8px;
 	    text-align: left;
-            border: 1px solid #ddd;        }
+            border: 1px solid #ddd;
+	}
         th {
             background-color: #f2f2f2;
         }
+	.request-response-viewer {
+    		margin-top: 20px;
+    		border: 1px solid #ccc;
+    		padding: 10px;
+	}
+
+	.request-response-viewer h3 {
+    		margin-top: 0;
+	}
+
+	.request-response-viewer pre {
+    		white-space: pre-wrap; /* Permet le retour à la ligne automatique */
+    		font-family: monospace;
+    		margin: 0;
+    		padding: 10px;
+    		background-color: #f5f5f5;
+    		border: 1px solid #eee;
+    		border-radius: 4px;
+	}
     </style>
+	<script>
+		function on_row_selected(packet_id) {
+	        	fetch(`/api/logs/full_packet/${packet_id}`)
+                	.then(response => {
+                    		if (!response.ok) {
+                        		throw new Error(`HTTP error! status: ${response.status}`);
+                    		}
+                    		return response.json();
+                	})
+                	.then(data => {
+				let method_editor = document.createElement("textarea");
+				method_editor.value = data.req.method;
+
+                    		document.getElementById('request-content').appendChild(method_editor);
+                    		document.getElementById('response-content').textContent = data.response;
+                	})
+                	.catch(error => {
+                    		console.error('Error getting packet details: ', error);
+                    		document.getElementById('request-content').textContent = 'Error getting packet details.';
+                    		document.getElementById('response-content').textContent = 'Error getting packet details.';
+                	});
+		}
+	</script>
 </head>
 <body>
     <div class="scrollable-table">
@@ -37,7 +80,7 @@
             </thead>
             <tbody>
                 {% for log_row in logs %}
-                <tr>
+                <tr onClick="on_row_selected({{log_row.packet_id}})">
                     <td>{{ log_row.packet_id }}</td>
                     <td>{{ log_row.method }}</td>
                     <td>{{ log_row.authority }}</td>
@@ -47,6 +90,12 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    <div class="request-response-viewer">
+        <h3>Request</h3>
+        <pre id="request-content"></pre>
+        <h3>Response</h3>
+        <pre id="response-content"></pre>
     </div>
 </body>
 </html>
