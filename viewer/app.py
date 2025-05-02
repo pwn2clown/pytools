@@ -31,22 +31,42 @@ def logs():
     if not is_project_loaded():
         return redirect("/")
 
+    inspected_packet = None
+    inspected_packet_id = None
+    try:
+        print(request.args.get("packet_id"))
+        inspected_packet_id = int(request.args.get("packet_id"))
+        inspected_packet = HttpDb.get_row_by_id(inspected_packet_id)
+    except Exception as e:
+        print(f"bad packet id format: {e}")
+
     return render_template(
             "logs.html",
             session=session,
-            logs=HttpDb.select()
+            logs=HttpDb.select(),
+            inspected_packet_id=inspected_packet_id,
+            inspected_packet=inspected_packet
         )
 
-@app.route("/api/logs/full_packet/<packet_id>")
-def full_packet(packet_id: int):
-    try:
-        packet = HttpDb.get_row_by_id(packet_id)
-        return jsonify({
-                "req": packet.to_dict()
-            }), 200
-    except Exception as e:
-        print(f"packet no found for id {packet_id}: {e}")
-        return jsonify({}), 404
+@app.route("/templates", methods=["POST"])
+def templates():
+    packet_id = 99
+    return jsonify({ "packet_id": packet_id }), 200
+
+@app.route("/editor", methods=["POST", "GET"])
+def editor():
+    packet_id = 99
+    return jsonify({ "packet_id": packet_id }), 200
+
+@app.route("/plugins", methods=["POST"])
+def plugins():
+    packet_id = 99
+    return jsonify({ "packet_id": packet_id }), 200
+
+@app.route("/issues", methods=["POST"])
+def issues():
+    packet_id = 99
+    return jsonify({ "packet_id": packet_id }), 200
 
 @app.route('/project', methods=['POST'])
 def select_project():
@@ -55,4 +75,5 @@ def select_project():
     return redirect("/logs")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    #  Single threaded mode to avoid mutli thread issues with sqlite connections
+    app.run(debug=True, threaded=False)

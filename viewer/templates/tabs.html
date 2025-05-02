@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onglets Horizontaux</title>
+	<style>
+body {
+    font-family: Arial, sans-serif;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 2px solid #ccc;
+}
+
+.tab-link {
+    padding: 10px 20px;
+    text-decoration: none;
+    color: #000;
+    background-color: #f1f1f1;
+    border: 1px solid transparent;
+    border-bottom: 2px solid transparent;
+    margin-right: 5px;
+}
+
+.tab-link.active {
+    background-color: white;
+    border-bottom: 2px solid blue;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+.tab-content.active {
+    display: block;
+}
+	</style>
+</head>
+<body>
+<div class="tabs">
+    <a href="/logs" class="tab-link active">Logs</a>
+    <a href="/templates" class="tab-link">Templates</a>
+    <a href="/editor" class="tab-link">Edit & Send</a>
+    <a href="/plugins" class="tab-link">Manage plugins</a>
+    <a href="/issues" class="tab-link">Issues</a>
+    <a href="/project" class="tab-link">Project</a>
+</div>
+</body>
+</html>

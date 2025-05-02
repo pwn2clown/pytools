@@ -9,6 +9,7 @@ class FilterKind(Enum):
     Equals = 4
 
     def parse(raw: str):
+        """
         match raw:
             case "ends_with":
                 return FilterKind.EndsWith
@@ -22,7 +23,8 @@ class FilterKind(Enum):
                 return FilterKind.Equals
             case _:
                 raise Exception(f"Bad filter kind value: \"{raw}\"")
-
+        """
+        pass
 
 class Filter:
     def __init__(self, filter_kind: FilterKind, value: str):
@@ -53,7 +55,7 @@ class HttpResponse:
             packet_id: int,
             status: int,
             headers: dict,
-            body: bytes
+            body: str 
         ):
         
         self.packet_id = packet_id
@@ -66,7 +68,7 @@ class HttpResponse:
                 "packet_id": packet_id,
                 "status": self.status,
                 "headers": self.headers,
-                "body": self.body.decode("utf-8")
+                "body": self.body
             }
 
 class HttpResquest:
@@ -77,7 +79,7 @@ class HttpResquest:
             path: str,
             query: str,
             headers: dict,
-            body: bytes
+            body: str
         ):
         
         self.packet_id = packet_id
@@ -96,7 +98,7 @@ class HttpResquest:
                 "path": self.path,
                 "query": self.query,
                 "headers": self.headers,
-                "body": self.body.decode("utf-8")
+                "body": self.body
             }
 
 class HttpLogRow:
@@ -140,16 +142,17 @@ class HttpDb:
     def get_response_by_id(cls, packet_id: int) -> HttpResponse:
         try:
             cursor = cls.conn.cursor()
-            cursor.execute("SELECT status, body FROM request_headers WHERE packet_id=?", [packet_id])
+            cursor.execute("SELECT status, body FROM responses WHERE packet_id=?", [packet_id])
             (status, body) = cursor.fetchone()
 
             headers = {}
-            cursor.execute("SELECT key, value FROM request_headers WHERE packet_id=?", [packet_id])
+            cursor.execute("SELECT key, value FROM response_headers WHERE packet_id=?", [packet_id])
             for (k, v) in cursor.fetchall():
                 headers[str(k)] = str(v)
 
-            return HttpResponse(status, headers, body)
+            return HttpResponse(packet_id, status, headers, body)
         except Exception as e:
+            print(f"failed to get response: {e}")
             return None
 
     @classmethod
