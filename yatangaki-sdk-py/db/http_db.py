@@ -1,182 +1,82 @@
+from typing import List
 from enum import Enum
-from .db_connection import init_db_conn
+from pathlib import Path
 
-class FilterKind(Enum):
-    EndsWith = 0
-    Matches = 1
-    Contains = 2
-    StartsWith = 3
-    Equals = 4
+from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.types import LargeBinary
+from sqlalchemy import create_engine, ForeignKey
+from sqlalchemy.orm import Session, relationship, declarative_base, Mapped, mapped_column
 
-    def parse(raw: str):
-        """
-        match raw:
-            case "ends_with":
-                return FilterKind.EndsWith
-            case "matches":
-                return FilterKind.Matches
-            case "contains":
-                return FilterKind.Contains
-            case "starts_with":
-                return FilterKind.StartsWith
-            case "equals":
-                return FilterKind.Equals
-            case _:
-                raise Exception(f"Bad filter kind value: \"{raw}\"")
-        """
-        pass
+from .db_connection import db_basepath
 
-class Filter:
-    def __init__(self, filter_kind: FilterKind, value: str):
-        self.filter_kind = filter_kind
-        self.value = value
+Base = declarative_base()
 
-    def try_from(raw: str):
-        splitted = raw.split(':')
-        if len(splitted) != 2:
-            raise Exception(f"invalid filter format on \"{raw}\"")
+def httpdb(project_name: str):
+    db_uri = "sqlite:///" + str(db_basepath() / project_name / "logs.db")
+    engine = create_engine(db_uri, echo=True)
+    Base.metadata.create_all(engine)
+    return Session(engine)
 
-        (kind, value) = tuple(splitted)
-        filter_kind = FilterKind.parse(kind)
+class HttpRequest(Base):
+    __tablename__ = "http_requests"
 
-        return Filter(filter_kind, value)
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(Float)
+    path = Column(String)
+    method = Column(String)
+    authority = Column(String)
+    scheme = Column(String)
+    headers : Mapped[List["HttpRequestHeader"]] = relationship(back_populates="request")
+    query : Mapped[List["HttpRequestQuery"]] = relationship(back_populates="request")
+    body = Column(LargeBinary)
 
+    def __repr__(self) -> str:
+        return "some http request"
 
-class HttpLogsFilterBuilder:
-    def __init__(self):
-        self.path = None
+class HttpResponse(Base):
+    __tablename__ = "http_responses"
 
-    def with_path_filter(self, path_filter: str):
-        self.path = Filter.try_from(path_filter)
-        return self
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(Float)
+    status = Column(Integer)
+    headers : Mapped[List["HttpResponseHeader"]] = relationship(back_populates="response")
+    body = Column(LargeBinary)
 
-class HttpResponse:
-    def __init__(self,
-            packet_id: int,
-            status: int,
-            headers: dict,
-            body: str 
-        ):
-        
-        self.packet_id = packet_id
-        self.status = status
-        self.headers = headers
-        self.body = body
+    def __repr__(self) -> str:
+        return "some http request"
 
-    def to_dict(self) -> dict:
-        return {
-                "packet_id": packet_id,
-                "status": self.status,
-                "headers": self.headers,
-                "body": self.body
-            }
+class HttpRequestQuery(Base):
+    __tablename__ = "request_query"
 
-class HttpResquest:
-    def __init__(self,
-            packet_id: int,
-            method: str,
-            authority: str,
-            path: str,
-            query: str,
-            headers: dict,
-            body: str
-        ):
-        
-        self.packet_id = packet_id
-        self.method = method
-        self.authority = authority
-        self.path = path
-        self.query = query
-        self.headers = headers
-        self.body = body
+    id = mapped_column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey('http_requests.id'))
+    request = relationship("HttpRequest", back_populates="query")
+    key = Column(String)
+    value = Column(String)
 
-    def to_dict(self) -> dict:
-        return {
-                "packet_id": self.packet_id,
-                "method": self.method,
-                "authority": self.authority,
-                "path": self.path,
-                "query": self.query,
-                "headers": self.headers,
-                "body": self.body
-            }
+    def __repr__(self) -> str:
+        return "some http query params"
 
-class HttpLogRow:
-    def __init__(self,
-            packet_id: int,
-            request: HttpResquest,
-            response: HttpResponse
-        ):
+class HttpRequestHeader(Base):
+    __tablename__ = "request_headers"
 
-        self.packet_id = packet_id
-        self.request = request
-        self.response = response
+    id = mapped_column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey('http_requests.id'))
+    request = relationship("HttpRequest", back_populates="headers")
+    key = Column(String)
+    value = Column(String)
 
-    def to_dict(self) -> dict:
-        return {
-                "packet_id": self.packet_id,
-                "request": self.request.to_dict(),
-                "response": self.response.to_dict() if self.response else {}
-            }
+    def __repr__(self) -> str:
+        return "some http request headers"
 
-class HttpDb:
-    conn = None
-    project_name = None
+class HttpResponseHeader(Base):
+    __tablename__ = "response_headers"
 
-    @classmethod
-    def load_project(cls, project_name: str):
-        cls.conn = init_db_conn(db_name = "logs", project_name = project_name)
+    id = mapped_column(Integer, primary_key=True)
+    response_id = Column(Integer, ForeignKey('http_responses.id'))
+    response = relationship("HttpResponse", back_populates="headers")
+    key = Column(String)
+    value = Column(String)
 
-    @classmethod
-    def has_project_loaded(cls):
-        return True if cls.conn else False
-
-    @classmethod
-    def get_row_by_id(cls, packet_id: int) -> HttpLogRow:
-        request = cls.get_request_by_id(packet_id)
-        response = cls.get_response_by_id(packet_id)
-
-        return HttpLogRow(packet_id, request, response)
-    
-    @classmethod
-    def get_response_by_id(cls, packet_id: int) -> HttpResponse:
-        try:
-            cursor = cls.conn.cursor()
-            cursor.execute("SELECT status, body FROM responses WHERE packet_id=?", [packet_id])
-            (status, body) = cursor.fetchone()
-
-            headers = {}
-            cursor.execute("SELECT key, value FROM response_headers WHERE packet_id=?", [packet_id])
-            for (k, v) in cursor.fetchall():
-                headers[str(k)] = str(v)
-
-            return HttpResponse(packet_id, status, headers, body)
-        except Exception as e:
-            print(f"failed to get response: {e}")
-            return None
-
-    @classmethod
-    def get_request_by_id(cls, packet_id: int) -> HttpResquest:
-        cursor = cls.conn.cursor()
-        cursor.execute("SELECT method, authority, path, query, body FROM requests WHERE packet_id=?;", [packet_id])
-        (method, authority, path, query, body) = cursor.fetchone()
-        
-        headers = {}
-        cursor.execute("SELECT key, value FROM request_headers WHERE packet_id=?", [packet_id])
-        for (k, v) in cursor.fetchall():
-            headers[str(k)] = str(v)
-
-        return HttpResquest(packet_id, method, authority, path, query, headers, body)
-
-    @classmethod
-    def select(cls, filter_builder: HttpLogsFilterBuilder = None, limit=25):
-        cursor = cls.conn.cursor()
-        packets = []
-        
-        cursor.execute("SELECT COUNT(*) FROM requests;")
-        row_count = cursor.fetchone()[0]
-
-        for i in range(row_count):
-            packets.append(cls.get_row_by_id(i))
-
-        return packets
+    def __repr__(self) -> str:
+        return "some http request headers"

@@ -1,16 +1,19 @@
 from flask import Flask, session, render_template, redirect, request, jsonify
-import os, sys
+from flask_executor import Executor
+from sqlalchemy import select
 
 #  Local sdk path for now
+import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../yatangaki-sdk-py')))
-from db import init_db_conn, db_basepath
-from db.http_db import HttpDb, HttpLogsFilterBuilder
+from db.http_db import *
+from .proxy import start_proxy
 
 app = Flask(__name__)
 app.secret_key = "issou"
+executor = Executor(app)
 
 def is_project_loaded():
-    return "current_project" in session.keys() and HttpDb.has_project_loaded()
+    return "current_project" in session.keys()
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -33,19 +36,23 @@ def logs():
 
     inspected_packet = None
     inspected_packet_id = None
+
     try:
-        print(request.args.get("packet_id"))
-        inspected_packet_id = int(request.args.get("packet_id"))
-        inspected_packet = HttpDb.get_row_by_id(inspected_packet_id)
+        if request.args.get("packet_id"):
+            inspected_packet_id = int(request.args.get("packet_id"))
+            
     except Exception as e:
         print(f"bad packet id format: {e}")
+
+    db_session = httpdb(session["current_project"])
+    stmt = select(HttpRequest).limit(25)
+    requests = db_session.execute(stmt) 
 
     return render_template(
             "logs.html",
             session=session,
-            logs=HttpDb.select(),
+            requests=requests,
             inspected_packet_id=inspected_packet_id,
-            inspected_packet=inspected_packet
         )
 
 @app.route("/templates", methods=["POST"])
@@ -71,9 +78,8 @@ def issues():
 @app.route('/project', methods=['POST'])
 def select_project():
     session["current_project"] = request.form["project"]
-    HttpDb.load_project(session["current_project"])
+    executor.submit(start_proxy, 8080, httpdb(session["current_project"]))
     return redirect("/logs")
 
 if __name__ == '__main__':
-    #  Single threaded mode to avoid mutli thread issues with sqlite connections
-    app.run(debug=True, threaded=False)
+    app.run(debug=True)

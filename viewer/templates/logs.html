@@ -26,10 +26,13 @@
 		display: flex;
 	}
 	.editorbox {
-		flex: 1;
+		width: 50%;
     		margin-top: 10px;
     		border: 1px solid #ccc;
     		padding: 10px;
+	}
+	.prettified-body {
+		white-space: pre-wrap;
 	}
     </style>
 	<script>
@@ -105,7 +108,7 @@
 			{% endfor %}
 		</table>
 		<table>
-			<tr><td>{{ inspected_packet.response.body }}</td></tr>
+			<tr><td class="prettified-body">{{ inspected_packet.response.body }}</td></tr>
 		</table>
 		{% else %}
 		<p>Error getting response content :(</p>

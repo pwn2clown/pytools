@@ -1,0 +1,5 @@
+beautifulsoup4
+SQLAlchemy
+mitmproxy
+flask
+Flask-Executor
