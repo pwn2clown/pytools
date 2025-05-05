@@ -13,7 +13,7 @@ Base = declarative_base()
 
 def httpdb(project_name: str):
     db_uri = "sqlite:///" + str(db_basepath() / project_name / "logs.db")
-    engine = create_engine(db_uri, echo=True)
+    engine = create_engine(db_uri)
     Base.metadata.create_all(engine)
     return Session(engine)
 
@@ -28,6 +28,7 @@ class HttpRequest(Base):
     scheme = Column(String)
     headers : Mapped[List["HttpRequestHeader"]] = relationship(back_populates="request")
     query : Mapped[List["HttpRequestQuery"]] = relationship(back_populates="request")
+    response : Mapped["HttpResponse"] = relationship(back_populates="request")
     body = Column(LargeBinary)
 
     def __repr__(self) -> str:
@@ -40,10 +41,12 @@ class HttpResponse(Base):
     timestamp = Column(Float)
     status = Column(Integer)
     headers : Mapped[List["HttpResponseHeader"]] = relationship(back_populates="response")
+    request_id = Column(Integer, ForeignKey('http_requests.id'))
+    request = relationship("HttpRequest", back_populates="response")
     body = Column(LargeBinary)
 
     def __repr__(self) -> str:
-        return "some http request"
+        return "some http response"
 
 class HttpRequestQuery(Base):
     __tablename__ = "request_query"

@@ -51,64 +51,62 @@
                     <th>Method</th>
                     <th>Autority</th>
                     <th>Path</th>
-                    <th>Query</th>
                 </tr>
             </thead>
             <tbody>
-                {% for log_row in logs %}
-		<tr onClick="on_row_selected({{log_row.packet_id}})" {% if inspected_packet_id == log_row.packet_id %}bgcolor="#bdecfd"{% endif %}>
-                    <td>{{ log_row.packet_id }}</td>
-                    <td>{{ log_row.request.method }}</td>
-                    <td>{{ log_row.request.authority }}</td>
-                    <td>{{ log_row.request.path }}</td>
-                    <td>{{ log_row.request.query }}</td>
+                {% for request in requests %}
+		<tr onClick="on_row_selected({{request[0].id}})" {% if inspected_packet_id == request[0].id %}bgcolor="#bdecfd"{% endif %}>
+			<td>{{ request[0].id }}</td>
+			<td>{{ request[0].method }}</td>
+			<td>{{ request[0].authority }}</td>
+			<td>{{ request[0].path }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% if inspected_packet %}
+    {% if inspected_request %}
     <div class="request-response-viewer">
 	<div class="editorbox" id="request-content">
 		<h3>Request</h3>
 		<table>
 			<tr>
-				<td width="10%"> {{ inspected_packet.request.method}} </td>
-				<td> https://{{ inspected_packet.request.authority }}{{ inspected_packet.request.path }} </td>
+				<td width="10%"> {{ inspected_request.method}} </td>
+				<td> https://{{ inspected_request.authority }}{{ inspected_request.path }} </td>
 			</tr>
 		</table>
 		<table>
-			{% for key, value in inspected_packet.request.headers.items() %}
+			{% for header in inspected_request.headers %}
 			<tr>
-				<td width="20%">{{ key }}</td>
-				<td>{{ value }}</td>
+				<td width="20%">{{ header.key }}</td>
+				<td>{{ header.value }}</td>
 			</tr>
 			{% endfor %}
 		</table>
 		<table>
-			<tr><td>{{ inspected_packet.request.body }}</td></tr>
+			<tr><td>{{ inspected_request.body }}</td></tr>
 		</table>
 	</div>
 	<div class="editorbox" id="response-content">
 		<h3>Response</h3>
 		<div>
 		</div>
-		{% if inspected_packet.response %}
+		{% if inspected_request.response %}
 		<table>
 			<tr>
-				<td width="10%"> {{ inspected_packet.response.status}} </td>
+				<td width="10%"> {{ inspected_request.response.status}} </td>
 			</tr>
 		</table>
 		<table>
-			{% for key, value in inspected_packet.response.headers.items() %}
+			{% for header in inspected_request.response.headers %}
 			<tr>
-				<td>{{ key }}:</td>
-				<td>{{ value }}</td>
+				<td>{{ header.key }}:</td>
+				<td>{{ header.value }}</td>
 			</tr>
 			{% endfor %}
 		</table>
 		<table>
-			<tr><td class="prettified-body">{{ inspected_packet.response.body }}</td></tr>
+			<tr><td class="prettified-body">{{ prettified_body }}</td></tr>
 		</table>
 		{% else %}
 		<p>Error getting response content :(</p>

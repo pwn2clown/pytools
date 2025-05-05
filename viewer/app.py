@@ -1,6 +1,7 @@
 from flask import Flask, session, render_template, redirect, request, jsonify
 from flask_executor import Executor
 from sqlalchemy import select
+from bs4 import BeautifulSoup
 
 #  Local sdk path for now
 import os, sys
@@ -17,9 +18,7 @@ def is_project_loaded():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    if is_project_loaded():
-        return redirect("/logs")
-      
+    session = {}
     db_basedir = db_basepath()
     if not db_basedir.exists():
         db_basedir.mkdir(parents=True)
@@ -34,24 +33,40 @@ def logs():
     if not is_project_loaded():
         return redirect("/")
 
-    inspected_packet = None
+    inspected_request = None
     inspected_packet_id = None
+    requets = None
+    prettified_body = ""
 
     try:
+        db_session = httpdb(session["current_project"])
+
         if request.args.get("packet_id"):
             inspected_packet_id = int(request.args.get("packet_id"))
+            stmt = select(HttpRequest).where(HttpRequest.id == inspected_packet_id)
+            inspected_request = db_session.execute(stmt).one()[0]
             
+            #  prettify response
+            if inspected_request.response:
+                for header in inspected_request.response.headers:
+                    if header.key.lower() == "content-type" and\
+                            "text/html" in header.value.lower():
+
+                        soup = BeautifulSoup(inspected_request.response.body, "html.parser")
+                        prettified_body = soup.prettify() 
+
+        stmt = select(HttpRequest).limit(25)
+        requests = db_session.execute(stmt).all()
+
     except Exception as e:
         print(f"bad packet id format: {e}")
-
-    db_session = httpdb(session["current_project"])
-    stmt = select(HttpRequest).limit(25)
-    requests = db_session.execute(stmt) 
 
     return render_template(
             "logs.html",
             session=session,
             requests=requests,
+            prettified_body=prettified_body,
+            inspected_request=inspected_request,
             inspected_packet_id=inspected_packet_id,
         )
 
@@ -78,7 +93,7 @@ def issues():
 @app.route('/project', methods=['POST'])
 def select_project():
     session["current_project"] = request.form["project"]
-    executor.submit(start_proxy, 8080, httpdb(session["current_project"]))
+    executor.submit(start_proxy, 9000, httpdb(session["current_project"]))
     return redirect("/logs")
 
 if __name__ == '__main__':

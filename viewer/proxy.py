@@ -35,6 +35,13 @@ class RequestLogger:
                         value=v
                     ))
 
+            response = HttpResponse(
+                    timestamp = res.timestamp_end,
+                    status = res.status_code,
+                    headers = response_headers,
+                    body = res.content
+                )
+
             request = HttpRequest(
                     timestamp = req.timestamp_end,
                     path = req.path,
@@ -43,30 +50,32 @@ class RequestLogger:
                     scheme = req.scheme,
                     headers = request_headers,
                     query = request_query,
-                    body = req.content
+                    body = req.content,
+                    response = response
                 )
 
-            response = HttpResponse(
-                    timestamp = res.timestamp_end,
-                    status = res.status_code,
-                    headers = response_headers,
-                    body = res.content
-                )
-
-            self.db_session.add_all([request, response])
+            self.db_session.add_all([request])
             self.db_session.commit()
         except Exception as e:
             print(e)
 
 async def start_proxy(port, db_session):
-    opts = options.Options(listen_host="127.0.0.1", listen_port=port)
+    try:
+        print("configuring proxy")
+        opts = options.Options(
+            listen_host="127.0.0.1",
+            listen_port=port,
+            mode=["upstream:http://localhost:3128/"]
+        )
 
-    master = dump.DumpMaster(
-        opts,
-        with_termlog=False,
-        with_dumper=False,
-    )
-    master.addons.add(RequestLogger(db_session))
+        master = dump.DumpMaster(
+            opts,
+            with_termlog=False,
+            with_dumper=False,
+        )
+        master.addons.add(RequestLogger(db_session))
     
-    await master.run()
-    return master
+        await master.run()
+        return master
+    except Exception as e:
+        print(f"failed to start proxy: {e}")
