@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Onglets Horizontaux</title>
 	<style>
 body {
     font-family: Arial, sans-serif;
@@ -41,13 +40,29 @@ body {
 	</style>
 </head>
 <body>
+<script>
+	onload = (evt) => {
+		var links = document.getElementsByClassName("tab-link");
+		
+		for (let i = 0; i < links.length; i++) {
+			var link = new URL(links[i].href).pathname;
+			var current = document.location.pathname;
+
+			if (link === current) {
+				links[i].classList.add("active");
+			} else {
+				links[i].classList.remove("active");
+			}
+		}
+	}
+</script>
 <div class="tabs">
-    <a href="/logs" class="tab-link active">Logs</a>
-    <a href="/templates" class="tab-link">Templates</a>
-    <a href="/editor" class="tab-link">Edit & Send</a>
-    <a href="/plugins" class="tab-link">Manage plugins</a>
-    <a href="/issues" class="tab-link">Issues</a>
-    <a href="/project" class="tab-link">Project</a>
+    <a href="/logs" id="menu-tab" class="tab-link active">Logs</a>
+    <a href="/templates" id="menu-tab" class="tab-link">Templates</a>
+    <a href="/editor" id="menu-tab" class="tab-link">Edit & Send</a>
+    <a href="/plugins" id="menu-tab" class="tab-link">Manage plugins</a>
+    <a href="/issues" id="menu-tab" class="tab-link">Issues</a>
+    <a href="/project" id="menu-tab" class="tab-link">Project</a>
 </div>
 </body>
 </html>

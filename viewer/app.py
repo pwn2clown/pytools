@@ -1,5 +1,8 @@
+import threading
+import json
+from pathlib import Path
+
 from flask import Flask, session, render_template, redirect, request, jsonify
-from flask_executor import Executor
 from sqlalchemy import select
 from bs4 import BeautifulSoup
 
@@ -7,26 +10,30 @@ from bs4 import BeautifulSoup
 import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../yatangaki-sdk-py')))
 from db.http_db import *
-from .proxy import start_proxy
+
+from .proxy import project_name, proxy_entrypoint
+from .plugins import *
 
 app = Flask(__name__)
 app.secret_key = "issou"
-executor = Executor(app)
 
 def is_project_loaded():
     return "current_project" in session.keys()
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/project", methods=["GET", "POST"])
 def index():
-    session = {}
-    db_basedir = db_basepath()
-    if not db_basedir.exists():
-        db_basedir.mkdir(parents=True)
+    if request.method == "GET":
+        db_basedir = db_basepath()
+        if not db_basedir.exists():
+            db_basedir.mkdir(parents=True)
 
-    return render_template(
-            "index.html",
-            available_projects=[d.name for d in db_basedir.iterdir() if d.is_dir()]
-        )
+        return render_template(
+                "index.html",
+                available_projects=[d.name for d in db_basedir.iterdir() if d.is_dir()]
+            )
+    elif request.method == "POST":
+        session["current_project"] = request.form["project"]
+        return redirect("/logs")
 
 @app.route("/logs", methods=["GET", "POST"])
 def logs():
@@ -70,31 +77,50 @@ def logs():
             inspected_packet_id=inspected_packet_id,
         )
 
-@app.route("/templates", methods=["POST"])
+@app.route("/templates")
 def templates():
-    packet_id = 99
-    return jsonify({ "packet_id": packet_id }), 200
+    return render_template(
+            "template_editor.html"
+        )
 
-@app.route("/editor", methods=["POST", "GET"])
+@app.route("/editor")
 def editor():
-    packet_id = 99
-    return jsonify({ "packet_id": packet_id }), 200
+    return render_template(
+            "request_editor.html"
+        )
 
-@app.route("/plugins", methods=["POST"])
+@app.route("/plugins", methods=["GET", "POST"])
 def plugins():
-    packet_id = 99
-    return jsonify({ "packet_id": packet_id }), 200
+    config_dir = Path(os.environ["HOME"]) / ".yatangaki" / "plugins"
 
-@app.route("/issues", methods=["POST"])
+    plugins = []
+
+    for plugin in [d for d in config_dir.iterdir() if d.is_dir()]:
+        try:
+            f = open(f"{plugin}/plugin.json", "r")
+            plugin_config = json.loads(f.read())
+            f.close()
+
+            plugins.append(Plugin("test", plugin_config))
+            print(f"plugin {plugin} loaded successfully")
+        except Exception as e:
+            print(f"failed to load template: {e}")
+
+    return render_template(
+            "plugins.html",
+            plugins=plugins
+        )
+
+@app.route("/issues")
 def issues():
-    packet_id = 99
-    return jsonify({ "packet_id": packet_id }), 200
-
-@app.route('/project', methods=['POST'])
-def select_project():
-    session["current_project"] = request.form["project"]
-    executor.submit(start_proxy, 9000, httpdb(session["current_project"]))
-    return redirect("/logs")
+    return render_template(
+            "issues.html"
+        )
 
 if __name__ == '__main__':
+    """
+    pxy_task = threading.Thread(target=proxy_entrypoint)
+    pxy_task.daemon = True
+    pxy_task.start()
+    """
     app.run(debug=True)

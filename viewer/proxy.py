@@ -1,3 +1,4 @@
+import asyncio
 from mitmproxy import options
 from mitmproxy.tools import dump
 
@@ -6,11 +7,20 @@ import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../yatangaki-sdk-py')))
 from db.http_db import *
 
-class RequestLogger:
-    def __init__(self, db_session: Session):
-        self.db_session = db_session
+#  It sucks by python does not have proper mpsc channels...
+project_name = None
+master = None
 
+class RequestLogger:
     def response(self, flow):
+        global project_name
+
+        if not project_name:
+            print("MITM hook, no database selected")
+            return
+        
+        db_session = httpdb(project_name)
+
         try:
             req = flow.request
             res = flow.response
@@ -59,23 +69,31 @@ class RequestLogger:
         except Exception as e:
             print(e)
 
-async def start_proxy(port, db_session):
-    try:
-        print("configuring proxy")
-        opts = options.Options(
+#  FIXME: proxy restarts twice
+async def start_proxy():
+    global master
+    if master:
+        print("proxy already listening")
+        return
+
+    print("starting proxy service")
+    opts = options.Options(
             listen_host="127.0.0.1",
-            listen_port=port,
+            listen_port=9000,
             mode=["upstream:http://localhost:3128/"]
         )
 
-        master = dump.DumpMaster(
+    master = dump.DumpMaster(
             opts,
-            with_termlog=False,
             with_dumper=False,
         )
-        master.addons.add(RequestLogger(db_session))
+    master.addons.add(RequestLogger())
     
-        await master.run()
-        return master
-    except Exception as e:
-        print(f"failed to start proxy: {e}")
+    await master.run()
+    print("exiting")
+
+def proxy_entrypoint():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_proxy())
+    loop.close()
